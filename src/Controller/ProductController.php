@@ -1,11 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use App\Entity\Product;
+use App\Form\ProductType;
 use App\Repository\ProductRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
@@ -27,30 +32,32 @@ class ProductController extends AbstractController
      *
      * @var EntityManagerInterface $manager
      */
-    protected $manager;
+    protected EntityManagerInterface $manager;
     /**
      * Description $productRepository field
      *
      * @var ProductRepository $productRepository
      */
-    private $productRepository;
+    protected ProductRepository $productRepository;
 
     /**
      * ProductController constructor
      *
      * @param EntityManagerInterface $manager
+     * @param ProductRepository      $productRepository
      */
     public function __construct(
-        EntityManagerInterface $manager
+        EntityManagerInterface $manager,
+        ProductRepository $productRepository
     ) {
         $this->manager = $manager;
-        $this->productRepository = $manager->getRepository(Product::class);
+        $this->productRepository = $productRepository;
     }
 
     /**
      * Description index function
      *
-     * @Route("/", name="product_index")
+     * @Route("/", name="product_index", methods={"GET"})
      *
      * @return Response
      */
@@ -62,42 +69,96 @@ class ProductController extends AbstractController
     }
 
     /**
-     * Description show function
+     * Description new function
      *
-     * @param int $id
+     * @param Request $request
      *
-     * @Route("/show/{id}", name="product_show")
-     *
-     * @return Response
-     */
-    public function show(int $id): Response
-    {
-        return $this->render('product/show.html.twig', [
-            'product' => $this->productRepository->find($id),
-        ]);
-
-    }
-
-    /**
-     * Description create function
-     *
-     * @Route("/create", name="product_create")
+     * @Route("/new", name="product_new", methods={"GET","POST"})
      *
      * @return Response
      */
-    public function create(): Response
+    public function new(Request $request): Response
     {
         /** @var Product $product */
         $product = new Product();
-        $product->setSku('AZER')
-            ->setTitle('Product')
-            ->setCurrency('€')
-            ->setIsEnabled(true)
-            ->setPrice(12.2);
+        /** @var FormInterface $form */
+        $form = $this->createForm(ProductType::class, $product);
+        $form->handleRequest($request);
 
-        $this->manager->persist($product);
-        $this->manager->flush();
+        if ($form->isSubmitted() && $form->isValid()) {
+            $this->manager->persist($product);
+            $this->manager->flush();
 
-        return new Response(sprintf('Saved new product with id %s', $product->getId()));
+            return $this->redirectToRoute('product_index');
+        }
+
+        return $this->render('product/new.html.twig', [
+            'product' => $product,
+            'form' => $form->createView(),
+        ]);
+    }
+
+    /**
+     * Description show function
+     *
+     * @param Product $product
+     *
+     * @Route("/{id}", name="product_show", methods={"GET"})
+     *
+     * @return Response
+     */
+    public function show(Product $product): Response
+    {
+        return $this->render('product/show.html.twig', [
+            'product' => $product,
+        ]);
+    }
+
+    /**
+     * Description edit function
+     *
+     * @param Request $request
+     * @param Product $product`
+     *
+     * @Route("/{id}/edit", name="product_edit", methods={"GET","POST"})
+     *
+     * @return Response
+     */
+    public function edit(Request $request, Product $product): Response
+    {
+        /** @var FormInterface $form */
+        $form = $this->createForm(ProductType::class, $product);
+        $form->handleRequest($request);
+
+        if ($form->isSubmitted() && $form->isValid()) {
+            $this->manager->flush();
+
+            return $this->redirectToRoute('product_index');
+        }
+
+        return $this->render('product/edit.html.twig', [
+            'product' => $product,
+            'form' => $form->createView(),
+        ]);
+    }
+
+    /**
+     * Description delete function
+     *
+     * @param Request $request
+     * @param Product $product
+     *
+     * @Route("/{id}", name="product_delete", methods={"DELETE"})
+     *
+     * @return Response
+     */
+    public function delete(Request $request, Product $product): Response
+    {
+        if ($this->isCsrfTokenValid('delete'.$product->getId(), $request->request->get('_token'))) {
+            $this->manager->remove($product);
+            $this->manager->flush();
+        }
+
+        return $this->redirectToRoute('product_index');
     }
 }
