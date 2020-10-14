@@ -27,15 +27,14 @@ class IndexController extends AbstractController
      * @Route("/number/{max}", name="index")
      *
      * @return Response
-     * @throws \Exception
      */
     public function index(int $max): Response
     {
         /** @var int $number */
         $number = random_int(0, $max);
 
-        return new Response(
-            sprintf('<html><body>Lucky number: %s</body></html>', $number)
-        );
+        return $this->render('index/index.html.twig', [
+            'number' => $number
+        ]);
     }
 }
